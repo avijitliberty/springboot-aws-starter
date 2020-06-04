@@ -1,0 +1,123 @@
+<!DOCTYPE html>
+<html xmlns:layout="http://www.ultraq.net.nz/thymeleaf/layout"
+	xmlns:th="http://www.thymeleaf.org"
+	layout:decorate="~{fragments/layout}">
+<head>
+<title>Add User</title>
+</head>
+<body>
+	<div layout:fragment="content" th:remove="tag">
+		<div class="container">
+			<div class="row">
+				<div class="col-md-6 col-md-offset-3">
+
+					<h3>Add User</h3>
+					<form th:action="@{/add-user}" th:object="${userDto}" method="post"
+						enctype="multipart/form-data">
+
+						<p class="alert alert-danger" th:if="${#fields.hasGlobalErrors()}"
+							th:each="error : ${#fields.errors('global')}" th:text="${error}">Validation
+							error</p>
+
+						<div class="form-group"
+							th:classappend="${#fields.hasErrors('firstName')}? 'has-error':''">
+							<label for="firstName" class="control-label">First name:
+							</label> <input id="firstName" class="form-control"
+								th:field="*{firstName}" />
+							<p class="error-message"
+								th:each="error: ${#fields.errors('firstName')}"
+								th:text="${error}">Validation error</p>
+						</div>
+						<div class="form-group"
+							th:classappend="${#fields.hasErrors('lastName')}? 'has-error':''">
+							<label for="lastName" class="control-label">Last name: </label> <input
+								id="lastName" class="form-control" th:field="*{lastName}" />
+							<p class="error-message"
+								th:each="error : ${#fields.errors('lastName')}"
+								th:text="${error}">Validation error</p>
+						</div>
+						<div class="form-group"
+							th:classappend="${#fields.hasErrors('email')}? 'has-error':''">
+							<label for="email" class="control-label">E-mail: </label> <input
+								id="email" class="form-control" th:field="*{email}" />
+							<p class="error-message"
+								th:each="error : ${#fields.errors('email')}" th:text="${error}">Validation
+								error</p>
+						</div>
+						<div class="form-group"
+							th:classappend="${#fields.hasErrors('dateOfBirth')}? 'has-error':''">
+							<label for="dateOfBirth" class="control-label">Date Of
+								Birth: </label> 
+<!-- 							<input type="date" class="form-control"	th:field="*{dateOfBirth}" id="dateOfBirth" /> -->
+							<div class="input-group date">
+								<input type="text" class="form-control" id="dateOfBirth"
+									autocomplete="off" th:field="*{dateOfBirth}" />
+								<div class="input-group-append">
+									<span class="input-group-text"><i
+										class="far fa-calendar-alt"></i></span>
+								</div>
+							</div>
+							<p class="error-message"
+								th:each="error: ${#fields.errors('dateOfBirth')}"
+								th:text="${error}">Validation error</p>
+						</div>
+
+						<div class="form-group"
+							th:classappend="${#fields.hasErrors('image')}? 'has-error':''">
+							<label for="image" class="control-label">Image: </label> <input
+								id="image" type="file" class="form-control-file"
+								th:field="*{image}" /> <br /> <br />
+							<p class="error-message"
+								th:each="error: ${#fields.errors('image')}" th:text="${error}">Validation
+								error</p>
+						</div>
+
+						<div class="form-group"
+							th:classappend="${#fields.hasErrors('street')}? 'has-error':''">
+							<label for="street" class="control-label">Street: </label> <input
+								id="street" class="form-control" th:field="*{street}" />
+							<p class="error-message"
+								th:each="error : ${#fields.errors('street')}" th:text="${error}">Validation
+								error</p>
+						</div>
+
+						<div class="form-group"
+							th:classappend="${#fields.hasErrors('city')}? 'has-error':''">
+							<label for="city" class="control-label">City: </label> <input
+								id="city" class="form-control" th:field="*{city}" />
+							<p class="error-message"
+								th:each="error : ${#fields.errors('city')}" th:text="${error}">Validation
+								error</p>
+						</div>
+
+						<div class="form-group"
+							th:classappend="${#fields.hasErrors('county')}? 'has-error':''">
+							<label for="county" class="control-label">County: </label> <input
+								id="county" class="form-control" th:field="*{county}" />
+							<p class="error-message"
+								th:each="error : ${#fields.errors('county')}" th:text="${error}">Validation
+								error</p>
+						</div>
+
+						<div class="form-group"
+							th:classappend="${#fields.hasErrors('postcode')}? 'has-error':''">
+							<label for="postcode" class="control-label">Postal Code:
+							</label> <input id="postcode" class="form-control" th:field="*{postcode}" />
+							<p class="error-message"
+								th:each="error : ${#fields.errors('postcode')}"
+								th:text="${error}">Validation error</p>
+						</div>
+
+						<div class="form-group">
+							<button type="submit" name="action" value="save" class="btn btn-primary">Add User</button>
+							<button type="button" class="btn btn-primary" onclick="window.history.back();">Cancel</button>
+						</div>
+
+					</form>
+				</div>
+			</div>
+		</div>
+	</div>
+
+</body>
+</html>

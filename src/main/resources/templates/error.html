@@ -1,0 +1,15 @@
+<!DOCTYPE html>
+<html xmlns:layout="http://www.ultraq.net.nz/thymeleaf/layout"
+      xmlns:th="http://www.thymeleaf.org"
+      layout:decorate="~{fragments/layout}">
+    <head>
+        <title>SpringBootAwsStarter - Error page</title>
+    </head>
+    <body>
+        <div layout:fragment="content" th:remove="tag">
+        <h3>Thymeleaf UI - Error Page</h3>
+        <p th:text="${errorCode}">404</p>
+        <p th:utext="${errorMessage}">Error java.lang.NullPointerException</p>
+        </div>
+    </body>
+</html>
