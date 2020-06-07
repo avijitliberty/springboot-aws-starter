@@ -14,4 +14,5 @@
 		<aws-context:simple-credentials
 			access-key="${accessKey:}" secret-key="${secretKey:}" />
 	</aws-context:context-credentials>
+	<aws-context:context-resource-loader/>
 </beans>
