@@ -81,6 +81,7 @@
 				<artifactId>spring-boot-maven-plugin</artifactId>
 				<configuration>
 					<finalName>springboot-aws-starter</finalName>
+					<executable>true</executable>
 				</configuration>
 			</plugin>
 		</plugins>
