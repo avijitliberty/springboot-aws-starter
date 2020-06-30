@@ -50,7 +50,7 @@ spring:
   application:
     name: springboot-aws-starter
   datasource:
-    initialization-mode: never
+    initialization-mode: always
     schema: classpath:/scripts/schema.sql
   jpa:
     show-sql: false
