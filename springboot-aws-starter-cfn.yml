@@ -1,0 +1,525 @@
+AWSTemplateFormatVersion: 2010-09-09
+Description: "Sample stack for demonstrating features of Spring Cloud AWS which discussed in the article: . 
+              **WARNING** This template creates an Amazon EC2 instance and many more services. You will be billed for the 
+              AWS resources used if you create a stack from this template."
+Mappings:
+  SubnetConfig:
+    VPC:
+      CIDR: "10.0.0.0/16"
+    Public1:
+      CIDR: "10.0.0.0/24"
+    Public2:
+      CIDR: "10.0.1.0/24"    
+  RegionMap:
+    us-west-1:
+      HVM64: "ami-09a3e40793c7092f5"
+Parameters:
+  KeyName:
+    Description: Name of an existing EC2 KeyPair to enable SSH access to the instance
+    Type: AWS::EC2::KeyPair::KeyName
+    ConstraintDescription: must be the name of an existing EC2 KeyPair.
+  SSHLocation:
+    Description: The IP address range that can be used to SSH to the EC2 instances
+    Type: String
+    MinLength: 9
+    MaxLength: 18
+    Default: 0.0.0.0/0
+    AllowedPattern: (\d{1,3})\.(\d{1,3})\.(\d{1,3})\.(\d{1,3})/(\d{1,2})
+    ConstraintDescription: must be a valid IP CIDR range of the form x.x.x.x/x.
+  DBInstanceIdentifier:
+    Default: starter-db
+    Description: The database instance identifier
+    Type: String
+    MinLength: '1'
+    MaxLength: '64'
+    AllowedPattern: '[a-zA-Z-][a-zA-Z0-9.-]*'
+    ConstraintDescription: must begin with a letter and contain only alphanumeric characters.
+  DBName:
+    Default: starter_db
+    Description: The database name
+    Type: String
+    MinLength: '1'
+    MaxLength: '64'
+    AllowedPattern: '[a-zA-Z][a-zA-Z0-9._]*'
+    ConstraintDescription: must begin with a letter and contain only alphanumeric characters.
+  DBUser:
+    NoEcho: 'true'
+    Description: The database admin account username
+    Type: String
+    MinLength: '1'
+    MaxLength: '16'
+    AllowedPattern: '[a-zA-Z][a-zA-Z0-9]*'
+    ConstraintDescription: must begin with a letter and contain only alphanumeric characters.
+  DBPassword:
+    NoEcho: 'true'
+    Description: The database admin account password
+    Type: String
+    MinLength: '8'
+    MaxLength: '41'
+    AllowedPattern: '[a-zA-Z0-9!@#$&-]*'
+    ConstraintDescription: must contain only alphanumeric characters.
+  AvailabilityZone1:
+    Description: The first availability zones where the resources will be initiated
+    Type: AWS::EC2::AvailabilityZone::Name
+    ConstraintDescription: 'Must be a valid availability zones. Ex: us-west-1a'
+  AvailabilityZone2:
+    Description: The second availability zones where the resources will be initiated
+    Type: AWS::EC2::AvailabilityZone::Name
+    ConstraintDescription: 'Must be a valid availability zones. Ex: us-west-1b'
+  Environment:
+    Description: Enter the Environment
+    Type: String
+    ConstraintDescription: Must be a valid string.
+Resources:
+  SpringBootAwsStarterVpc:
+    Type: AWS::EC2::VPC
+    Properties: 
+      InstanceTenancy: default
+      EnableDnsSupport: true
+      EnableDnsHostnames: true
+      CidrBlock:
+        Fn::FindInMap:
+          - "SubnetConfig"
+          - "VPC"
+          - "CIDR"
+      Tags:
+         -
+           Key: "Name"
+           Value: "SpringBootAwsStarterVpc"
+  SpringBootAwsStarterSubnet2:
+    Type: AWS::EC2::Subnet
+    Properties:
+      VpcId:
+        Ref: SpringBootAwsStarterVpc
+      CidrBlock:
+        Fn::FindInMap:
+          - "SubnetConfig"
+          - "Public2"
+          - "CIDR"
+      AvailabilityZone:
+        Ref: AvailabilityZone2
+      Tags:
+         -
+           Key: "Name"
+           Value: "SpringBootAwsStarterSubnet2"
+  SpringBootAwsStarterSubnet1:
+    Type: AWS::EC2::Subnet
+    Properties:
+      VpcId:
+        Ref: SpringBootAwsStarterVpc
+      CidrBlock:
+        Fn::FindInMap:
+          - "SubnetConfig"
+          - "Public1"
+          - "CIDR"
+      AvailabilityZone:
+        Ref: AvailabilityZone1
+      Tags:
+         -
+           Key: "Name"
+           Value: "SpringBootAwsStarterSubnet1"
+  SpringBootAwsStarterInternetGateway:
+    Type: AWS::EC2::InternetGateway
+    Properties:
+      Tags:
+      - Key: Name
+        Value: "SpringBootAwsStarterInternetGateway"
+  AttachGateway:
+    Type: AWS::EC2::VPCGatewayAttachment
+    Properties:
+      VpcId:
+        Ref: SpringBootAwsStarterVpc
+      InternetGatewayId:
+        Ref: SpringBootAwsStarterInternetGateway
+  SpringBootAwsStarterNetworkAcl:
+    Type: 'AWS::EC2::NetworkAcl'
+    Properties:
+      VpcId: !Ref SpringBootAwsStarterVpc
+  SpringBootAwsStarterNetworkAclEntry1:
+    Type: 'AWS::EC2::NetworkAclEntry'
+    Properties:
+      CidrBlock: 0.0.0.0/0
+      Egress: 'true'
+      Protocol: '-1'
+      RuleAction: allow
+      RuleNumber: '100'
+      NetworkAclId: !Ref SpringBootAwsStarterNetworkAcl
+  SpringBootAwsStarterNetworkAclEntry2:
+    Type: 'AWS::EC2::NetworkAclEntry'
+    Properties:
+      CidrBlock: 0.0.0.0/0
+      Protocol: '-1'
+      RuleAction: allow
+      RuleNumber: '100'
+      NetworkAclId: !Ref SpringBootAwsStarterNetworkAcl
+  SpringBootAwsStarterSubnetAclAssociation1:
+    Type: 'AWS::EC2::SubnetNetworkAclAssociation'
+    Properties:
+      NetworkAclId: !Ref SpringBootAwsStarterNetworkAcl
+      SubnetId: !Ref SpringBootAwsStarterSubnet1
+  SpringBootAwsStarterSubnetAclAssociation2:
+    Type: 'AWS::EC2::SubnetNetworkAclAssociation'
+    Properties:
+      NetworkAclId: !Ref SpringBootAwsStarterNetworkAcl
+      SubnetId: !Ref SpringBootAwsStarterSubnet2
+  SpringBootAwsStarterDHCPOptions:
+    Type: 'AWS::EC2::DHCPOptions'
+    Properties:
+      DomainName: us-west-1.compute.internal
+      DomainNameServers:
+        - AmazonProvidedDNS
+  SpringBootAwsStarterAssociation:
+    Type: 'AWS::EC2::VPCDHCPOptionsAssociation'
+    Properties:
+      VpcId: !Ref SpringBootAwsStarterVpc
+      DhcpOptionsId: !Ref SpringBootAwsStarterDHCPOptions
+  SpringBootAwsStarterRouteTable:
+    Type: AWS::EC2::RouteTable
+    Properties:
+      VpcId:
+        Ref: SpringBootAwsStarterVpc
+      Tags:
+      - Key: Name
+        Value: "SpringBootAwsStarterRouteTable"
+  SpringBootAwsStarterRoute:
+    Type: AWS::EC2::Route
+    DependsOn: AttachGateway
+    Properties:
+      RouteTableId:
+        Ref: SpringBootAwsStarterRouteTable
+      DestinationCidrBlock: 0.0.0.0/0
+      GatewayId:
+        Ref: SpringBootAwsStarterInternetGateway
+  SubnetRouteTableAssociation1:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      SubnetId:
+        Ref: SpringBootAwsStarterSubnet1
+      RouteTableId:
+        Ref: SpringBootAwsStarterRouteTable
+  SubnetRouteTableAssociation2:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      SubnetId:
+        Ref: SpringBootAwsStarterSubnet2
+      RouteTableId:
+        Ref: SpringBootAwsStarterRouteTable
+  SpringBootAwsStarterInstanceSecurityGroup:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupDescription: Security group for a instance which client application is running
+      VpcId:
+        Ref: SpringBootAwsStarterVpc
+      Tags:
+      - Key: Name
+        Value: "SpringBootAwsStarterInstanceSecurityGroup"
+  SpringBootAwsStarterRdsSecurityGroup:
+    Type: AWS::EC2::SecurityGroup
+    DependsOn: SpringBootAwsStarterInstanceSecurityGroup
+    Properties:
+      GroupDescription: Security group for a DB which client application is running
+      VpcId:
+        Ref: SpringBootAwsStarterVpc
+      Tags:
+      - Key: Name
+        Value: "SpringBootAwsStarterRdsSecurityGroup"
+  SpringBootAwsStarterLBSecurityGroup:
+    Type: 'AWS::EC2::SecurityGroup'
+    Properties:
+      GroupDescription: Security Group for Application LoadBalancer
+      VpcId: !Ref SpringBootAwsStarterVpc
+      Tags:
+      - Key: Name
+        Value: "SpringBootAwsStarterLBSecurityGroup"
+  SpringBootAwsStarterDBSubnetGroup:
+    Type: AWS::RDS::DBSubnetGroup
+    Properties:
+      DBSubnetGroupDescription: DB Subnet group for the VPC
+      SubnetIds:
+        - !Ref SpringBootAwsStarterSubnet1
+        - !Ref SpringBootAwsStarterSubnet2
+  SpringBootAwsStarterInstanceSSHIngress:
+    Type: AWS::EC2::SecurityGroupIngress
+    Properties:
+      GroupId: !Ref SpringBootAwsStarterInstanceSecurityGroup
+      IpProtocol: tcp
+      FromPort: 22
+      ToPort: 22
+      CidrIp: !Ref 'SSHLocation'
+  SpringBootAwsStarterInstanceWebIngress:
+    Type: AWS::EC2::SecurityGroupIngress
+    Properties: 
+      GroupId: !Ref SpringBootAwsStarterInstanceSecurityGroup
+      IpProtocol: tcp
+      FromPort: 8080
+      ToPort: 8080
+      SourceSecurityGroupId: !GetAtt SpringBootAwsStarterLBSecurityGroup.GroupId
+  SpringBootAwsStarterRdsClientIngress:
+    Type: AWS::EC2::SecurityGroupIngress
+    Properties:
+      GroupId: !Ref SpringBootAwsStarterRdsSecurityGroup
+      IpProtocol: tcp
+      FromPort: 3306
+      ToPort: 3306
+      CidrIp: !Ref 'SSHLocation'
+  SpringBootAwsStarterRdsWebIngress:
+    Type: AWS::EC2::SecurityGroupIngress
+    Properties:
+      GroupId: !Ref SpringBootAwsStarterRdsSecurityGroup
+      IpProtocol: tcp
+      FromPort: 3306
+      ToPort: 3306
+      SourceSecurityGroupId: !Ref SpringBootAwsStarterInstanceSecurityGroup
+  SpringBootAwsStarterLBIngress:
+    Type: 'AWS::EC2::SecurityGroupIngress'
+    Properties:
+      GroupId: !Ref SpringBootAwsStarterLBSecurityGroup
+      IpProtocol: tcp
+      FromPort: '80'
+      ToPort: '80'
+      CidrIp: 0.0.0.0/0
+  SpringBootAwsStarterS3:
+    Type: AWS::S3::Bucket
+    DeletionPolicy: Delete
+    Properties:
+      BucketName: springboot-aws-starter-s3
+      CorsConfiguration:
+        CorsRules:
+          - AllowedHeaders: ['Authorization']
+            AllowedMethods: [GET]
+            AllowedOrigins: ['*']
+            Id: S3CORSRuleId
+            MaxAge: '3000'
+  SpringBootAwsStarterS3Policy:
+    Type: 'AWS::S3::BucketPolicy'
+    DependsOn: SpringBootAwsStarterS3
+    Properties:
+      Bucket: !Ref SpringBootAwsStarterS3
+      PolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+        - Sid: 'AddPerm'
+          Principal: '*'
+          Action: 's3:GetObject'
+          Effect: 'Allow'
+          Resource: 
+            Fn::Join: 
+              - ""
+              - 
+                - "arn:aws:s3:::"
+                - 
+                  Ref: "SpringBootAwsStarterS3"
+                - "/*"
+  SpringBootAwsStarterInstanceRole:
+    Type: 'AWS::IAM::Role'
+    Properties:
+      RoleName: SpringBootAwsStarterInstanceRole
+      AssumeRolePolicyDocument:
+        Version: 2012-10-17
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service:
+                - ec2.amazonaws.com
+            Action:
+              - 'sts:AssumeRole'
+      Path: /
+      Policies:
+        - PolicyName: SpringBootAwsStarterInstanceRolePolicy
+          PolicyDocument:
+            Version: 2012-10-17
+            Statement:
+              - Effect: Allow
+                Action:
+                  - 'rds:DescribeDBInstances'
+                  - 'rds:ListTagsForResource'
+                Resource: '*'
+              - Effect: Allow
+                Action:
+                  - 's3:PutObject'
+                  - 's3:GetObject'
+                  - 's3:DeleteObject'
+                Resource: '*' 
+  SpringBootAwsStarterInstanceProfile:
+    Type: 'AWS::IAM::InstanceProfile'
+    DependsOn: SpringBootAwsStarterInstanceRole
+    Properties:
+      Path: /
+      Roles:
+        - Ref: SpringBootAwsStarterInstanceRole
+  SpringBootAwsStarterRDS:
+    Type: AWS::RDS::DBInstance
+    DependsOn:
+      - SpringBootAwsStarterInstanceRole
+    Properties:
+      AllocatedStorage: '20'
+      AvailabilityZone: !GetAtt [SpringBootAwsStarterSubnet1, AvailabilityZone]
+      EngineVersion: "5.7.23"
+      AllowMajorVersionUpgrade: false
+      AutoMinorVersionUpgrade: true
+      DBInstanceIdentifier: !Ref 'DBInstanceIdentifier'
+      DBInstanceClass: db.t2.micro
+      Engine: MySQL
+      DBName: !Ref 'DBName'
+      MasterUsername: !Ref 'DBUser'
+      MasterUserPassword: !Ref 'DBPassword'
+      DBSubnetGroupName: !Ref SpringBootAwsStarterDBSubnetGroup
+      Port: "3306"
+      StorageType: "gp2"
+      BackupRetentionPeriod: '7'
+      PreferredBackupWindow: '07:47-08:17'
+      PreferredMaintenanceWindow: 'mon:12:54-mon:13:24'
+      LicenseModel: "general-public-license"
+      MultiAZ: false
+      PubliclyAccessible: true
+      VPCSecurityGroups:
+        - !Ref SpringBootAwsStarterRdsSecurityGroup
+    DeletionPolicy: Delete
+  SpringBootAwsStarterLoadBalancer:
+    Type: AWS::ElasticLoadBalancing::LoadBalancer
+    DependsOn: AttachGateway
+    Properties:
+      Subnets:
+        - !Ref SpringBootAwsStarterSubnet1
+        - !Ref SpringBootAwsStarterSubnet2
+      HealthCheck:
+        HealthyThreshold: '10'
+        Interval: '30'
+        Target: 'HTTP:8080/springboot-aws-starter/'
+        Timeout: '5'
+        UnhealthyThreshold: '2'
+      ConnectionDrainingPolicy:
+        Enabled: 'true'
+        Timeout: '300'
+      ConnectionSettings:
+        IdleTimeout: '60'
+      CrossZone: 'true'
+      SecurityGroups:
+        - !Ref SpringBootAwsStarterLBSecurityGroup
+      Listeners:
+        - InstancePort: '8080'
+          LoadBalancerPort: '80'
+          Protocol: HTTP
+          InstanceProtocol: HTTP
+          PolicyNames:
+            - SpringBootAwsStarterLBCookieStickinessPolicy
+      LBCookieStickinessPolicy:
+        - PolicyName: SpringBootAwsStarterLBCookieStickinessPolicy
+          CookieExpirationPeriod: '86400'
+      Tags:
+        - Key: name
+          Value: SpringBootAwsStarterLoadBalancer
+  SpringBootAwsStarterLauncher:
+    Type: AWS::AutoScaling::LaunchConfiguration
+    Properties:
+      AssociatePublicIpAddress: true
+      ImageId: !FindInMap
+        - RegionMap
+        - !Ref 'AWS::Region'
+        - HVM64
+      InstanceType: t2.micro
+      KeyName: !Ref KeyName
+      IamInstanceProfile: !Ref SpringBootAwsStarterInstanceProfile
+      SecurityGroups:
+        - Ref: SpringBootAwsStarterInstanceSecurityGroup
+      BlockDeviceMappings:
+        - DeviceName: /dev/xvda
+          Ebs:
+            VolumeSize: 8
+      UserData:
+        Fn::Base64:
+          !Sub |
+            #!/bin/bash -xe
+            echo "Starting springboot-aws-starter"
+            sudo su
+            # install updates
+            yum update -y
+            # remove java 1.7
+            yum remove java-1.7.0-openjdk -y
+            # install java 8
+            yum install java-1.8.0 -y
+            # create the working directory
+            mkdir /opt/springboot-aws-starter
+            # download the maven artifact from S3
+            aws s3 cp s3://cf-templates-18bgz3ltbv0p6-us-west-1/springboot-aws-starter.jar /opt/springboot-aws-starter/ --region=us-west-1
+            # change directories
+            cd /opt/springboot-aws-starter
+            # start application
+            java -Ddb-instance-identifier=${DBInstanceIdentifier} -Ddatabase-name=${DBName} -DrdsUser=${DBUser} -DrdsPassword=${DBPassword} -Dspring.profiles.active=aws -jar springboot-aws-starter.jar
+  SpringBootAwsStarterScaler:
+    Type: AWS::AutoScaling::AutoScalingGroup
+    DependsOn: SpringBootAwsStarterRDS
+    Properties:
+      AvailabilityZones:
+        - Ref: AvailabilityZone1
+        - Ref: AvailabilityZone2
+      Cooldown: '300'
+      DesiredCapacity: '2'
+      HealthCheckGracePeriod: '300'
+      HealthCheckType: EC2
+      MaxSize: '4'
+      MinSize: '2'
+      VPCZoneIdentifier:
+        - !Ref SpringBootAwsStarterSubnet1
+        - !Ref SpringBootAwsStarterSubnet2
+      LaunchConfigurationName: !Ref SpringBootAwsStarterLauncher
+      LoadBalancerNames:
+        - !Ref SpringBootAwsStarterLoadBalancer
+      Tags:
+        - Key: name
+          Value: SpringBootAwsStarterScaler
+          PropagateAtLaunch: true
+      TerminationPolicies:
+        - Default
+  SpringBootAwsStarterScaleDown:
+    Type: 'AWS::AutoScaling::ScalingPolicy'
+    Properties:
+      AdjustmentType: ChangeInCapacity
+      PolicyType: SimpleScaling
+      ScalingAdjustment: -1
+      AutoScalingGroupName: !Ref SpringBootAwsStarterScaler
+  SpringBootAwsStarterScaleUp:
+    Type: 'AWS::AutoScaling::ScalingPolicy'
+    Properties:
+      AdjustmentType: ChangeInCapacity
+      PolicyType: SimpleScaling
+      ScalingAdjustment: 1
+      AutoScalingGroupName: !Ref SpringBootAwsStarterScaler
+  SpringBootAwsStarterHighNetworkOutAlarm:
+    Type: 'AWS::CloudWatch::Alarm'
+    Properties:
+      ActionsEnabled: 'true'
+      ComparisonOperator: GreaterThanOrEqualToThreshold
+      EvaluationPeriods: '1'
+      MetricName: NetworkOut
+      Namespace: AWS/EC2
+      Period: '300'
+      Statistic: Average
+      Threshold: '50000.0'
+      AlarmActions:
+        - !Ref SpringBootAwsStarterScaleUp
+      Dimensions:
+        - Name: AutoScalingGroupName
+          Value: SpringBootAwsStarterScaler
+  SpringBootAwsStarterLowNetworkOutAlarm:
+    Type: 'AWS::CloudWatch::Alarm'
+    Properties:
+      ActionsEnabled: 'true'
+      ComparisonOperator: LessThanThreshold
+      EvaluationPeriods: '1'
+      MetricName: NetworkOut
+      Namespace: AWS/EC2
+      Period: '300'
+      Statistic: Average
+      Threshold: '50000.0'
+      AlarmActions:
+        - !Ref SpringBootAwsStarterScaleDown
+      Dimensions:
+        - Name: AutoScalingGroupName
+          Value: SpringBootAwsStarterScaler  
+
+Outputs:
+  JDBCConnectionString:
+    Description: JDBC connection string for the database
+    Value: !Join ['', ['jdbc:mysql://', !GetAtt [SpringBootAwsStarterRDS, Endpoint.Address], ':', !GetAtt [
+          SpringBootAwsStarterRDS, Endpoint.Port], /, !Ref 'DBName']]
