@@ -9,7 +9,11 @@ Mappings:
     Public1:
       CIDR: "10.0.0.0/24"
     Public2:
-      CIDR: "10.0.1.0/24"    
+      CIDR: "10.0.1.0/24"
+    Private1:
+      CIDR: "10.0.2.0/24"
+    Private2:
+      CIDR: "10.0.3.0/24"    
   RegionMap:
     us-west-1:
       HVM64: "ami-09a3e40793c7092f5"
@@ -66,10 +70,6 @@ Parameters:
     Description: The second availability zones where the resources will be initiated
     Type: AWS::EC2::AvailabilityZone::Name
     ConstraintDescription: 'Must be a valid availability zones. Ex: us-west-1b'
-  Environment:
-    Description: Enter the Environment
-    Type: String
-    ConstraintDescription: Must be a valid string.
 Resources:
   SpringBootAwsStarterVpc:
     Type: AWS::EC2::VPC
@@ -86,7 +86,7 @@ Resources:
          -
            Key: "Name"
            Value: "SpringBootAwsStarterVpc"
-  SpringBootAwsStarterSubnet2:
+  SpringBootAwsStarterPublicSubnet2:
     Type: AWS::EC2::Subnet
     Properties:
       VpcId:
@@ -101,8 +101,8 @@ Resources:
       Tags:
          -
            Key: "Name"
-           Value: "SpringBootAwsStarterSubnet2"
-  SpringBootAwsStarterSubnet1:
+           Value: "SpringBootAwsStarterPublicSubnet2"
+  SpringBootAwsStarterPublicSubnet1:
     Type: AWS::EC2::Subnet
     Properties:
       VpcId:
@@ -117,7 +117,41 @@ Resources:
       Tags:
          -
            Key: "Name"
-           Value: "SpringBootAwsStarterSubnet1"
+           Value: "SpringBootAwsStarterPublicSubnet1"
+  SpringBootAwsStarterPrivateSubnet1:
+    Type: AWS::EC2::Subnet
+    Properties:
+      VpcId:
+        Ref: SpringBootAwsStarterVpc
+      CidrBlock:
+        Fn::FindInMap:
+          - "SubnetConfig"
+          - "Private1"
+          - "CIDR"
+      AvailabilityZone:
+        Ref: AvailabilityZone1
+      MapPublicIpOnLaunch: false
+      Tags:
+         -
+           Key: "Name"
+           Value: "SpringBootAwsStarterPrivateSubnet1"
+  SpringBootAwsStarterPrivateSubnet2:
+    Type: AWS::EC2::Subnet
+    Properties:
+      VpcId:
+        Ref: SpringBootAwsStarterVpc
+      CidrBlock:
+        Fn::FindInMap:
+          - "SubnetConfig"
+          - "Private2"
+          - "CIDR"
+      AvailabilityZone:
+        Ref: AvailabilityZone2
+      MapPublicIpOnLaunch: false
+      Tags:
+         -
+           Key: "Name"
+           Value: "SpringBootAwsStarterPrivateSubnet2"
   SpringBootAwsStarterInternetGateway:
     Type: AWS::EC2::InternetGateway
     Properties:
@@ -156,12 +190,12 @@ Resources:
     Type: 'AWS::EC2::SubnetNetworkAclAssociation'
     Properties:
       NetworkAclId: !Ref SpringBootAwsStarterNetworkAcl
-      SubnetId: !Ref SpringBootAwsStarterSubnet1
+      SubnetId: !Ref SpringBootAwsStarterPublicSubnet1
   SpringBootAwsStarterSubnetAclAssociation2:
     Type: 'AWS::EC2::SubnetNetworkAclAssociation'
     Properties:
       NetworkAclId: !Ref SpringBootAwsStarterNetworkAcl
-      SubnetId: !Ref SpringBootAwsStarterSubnet2
+      SubnetId: !Ref SpringBootAwsStarterPublicSubnet2
   SpringBootAwsStarterDHCPOptions:
     Type: 'AWS::EC2::DHCPOptions'
     Properties:
@@ -194,14 +228,14 @@ Resources:
     Type: AWS::EC2::SubnetRouteTableAssociation
     Properties:
       SubnetId:
-        Ref: SpringBootAwsStarterSubnet1
+        Ref: SpringBootAwsStarterPublicSubnet1
       RouteTableId:
         Ref: SpringBootAwsStarterRouteTable
   SubnetRouteTableAssociation2:
     Type: AWS::EC2::SubnetRouteTableAssociation
     Properties:
       SubnetId:
-        Ref: SpringBootAwsStarterSubnet2
+        Ref: SpringBootAwsStarterPublicSubnet2
       RouteTableId:
         Ref: SpringBootAwsStarterRouteTable
   SpringBootAwsStarterInstanceSecurityGroup:
@@ -236,8 +270,8 @@ Resources:
     Properties:
       DBSubnetGroupDescription: DB Subnet group for the VPC
       SubnetIds:
-        - !Ref SpringBootAwsStarterSubnet1
-        - !Ref SpringBootAwsStarterSubnet2
+        - !Ref SpringBootAwsStarterPrivateSubnet1
+        - !Ref SpringBootAwsStarterPrivateSubnet2
   SpringBootAwsStarterInstanceSSHIngress:
     Type: AWS::EC2::SecurityGroupIngress
     Properties:
@@ -353,7 +387,7 @@ Resources:
       - SpringBootAwsStarterInstanceRole
     Properties:
       AllocatedStorage: '20'
-      AvailabilityZone: !GetAtt [SpringBootAwsStarterSubnet1, AvailabilityZone]
+      AvailabilityZone: !GetAtt [SpringBootAwsStarterPrivateSubnet1, AvailabilityZone]
       EngineVersion: "5.7.23"
       AllowMajorVersionUpgrade: false
       AutoMinorVersionUpgrade: true
@@ -371,7 +405,7 @@ Resources:
       PreferredMaintenanceWindow: 'mon:12:54-mon:13:24'
       LicenseModel: "general-public-license"
       MultiAZ: false
-      PubliclyAccessible: true
+      PubliclyAccessible: false
       VPCSecurityGroups:
         - !Ref SpringBootAwsStarterRdsSecurityGroup
     DeletionPolicy: Delete
@@ -380,8 +414,8 @@ Resources:
     DependsOn: AttachGateway
     Properties:
       Subnets:
-        - !Ref SpringBootAwsStarterSubnet1
-        - !Ref SpringBootAwsStarterSubnet2
+        - !Ref SpringBootAwsStarterPublicSubnet1
+        - !Ref SpringBootAwsStarterPublicSubnet2
       HealthCheck:
         HealthyThreshold: '10'
         Interval: '30'
@@ -460,8 +494,8 @@ Resources:
       MaxSize: '4'
       MinSize: '2'
       VPCZoneIdentifier:
-        - !Ref SpringBootAwsStarterSubnet1
-        - !Ref SpringBootAwsStarterSubnet2
+        - !Ref SpringBootAwsStarterPublicSubnet1
+        - !Ref SpringBootAwsStarterPublicSubnet2
       LaunchConfigurationName: !Ref SpringBootAwsStarterLauncher
       LoadBalancerNames:
         - !Ref SpringBootAwsStarterLoadBalancer
@@ -517,9 +551,11 @@ Resources:
       Dimensions:
         - Name: AutoScalingGroupName
           Value: SpringBootAwsStarterScaler  
-
 Outputs:
   JDBCConnectionString:
     Description: JDBC connection string for the database
     Value: !Join ['', ['jdbc:mysql://', !GetAtt [SpringBootAwsStarterRDS, Endpoint.Address], ':', !GetAtt [
           SpringBootAwsStarterRDS, Endpoint.Port], /, !Ref 'DBName']]
+  ExternalUrl:
+    Description: The url of the external load balancer
+    Value: !Join ['', ['http://', !GetAtt 'SpringBootAwsStarterLoadBalancer.DNSName','/springboot-aws-starter/']]
